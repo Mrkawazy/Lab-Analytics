@@ -9,7 +9,7 @@ from analytics.tables import (
     organisms_counts, ast_table, antibiogram_matrix,
     clients_by_SIR, clients_by_patienttype, clients_by_ptype_and_SIR
 )
-from visuals.charts import bar_count, pie, histogram, heatmap_from_matrix, download_buttons
+from visuals.charts import *
 from analytics.helpers import age_to_years_for_analysis, add_age_bands_years
 
 st.set_page_config(page_title="Dashboard — Lab Data Cleaner", layout="wide")
@@ -83,13 +83,16 @@ with center:
             c2.plotly_chart(fig, use_container_width=True); download_buttons(fig, "top_pathogens", c2)
 
     with tabs[1]:
-        if {'age_value','age_type'}.issubset(df_f.columns):
+        if {'age_value','age_type','gender_clean'}.issubset(df_f.columns):
             tmp = df_f.copy()
             tmp['age_years'] = tmp.apply(age_to_years_for_analysis, axis=1)
             tmp = tmp.dropna(subset=['age_years'])
             tmp['age_band'] = add_age_bands_years(tmp['age_years'])
             fig = histogram(tmp, x='age_band', nbins=30, title="Age distribution (years)")
             st.plotly_chart(fig, use_container_width=True); download_buttons(fig, "age_distribution")
+            fig2=stacked_100(tmp,x='age_band',stack="gender_clean",title="Age and Sex")
+            st.plotly_chart(fig2, use_container_width=True); download_buttons(fig2, "Age and Sex")
+           
         if 'gender_clean' in df_f.columns and df_f['gender_clean'].notna().any():
             g = df_f['gender_clean'].value_counts().rename_axis('Gender').reset_index(name='Count')
             fig = pie(g, names='Gender', values='Count', title="Gender split")
