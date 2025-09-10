@@ -3,3 +3,8 @@ pandas>=2.0
 numpy>=1.24
 plotly>=5
 kaleido>=0.2.1  # for Plotly static image export
+pandas>=2.0
+openpyxl>=3.1
+# (optional, if you also need these)
+xlrd>=2.0      # for legacy .xls
+pyxlsb>=1.0    # for .xlsb
