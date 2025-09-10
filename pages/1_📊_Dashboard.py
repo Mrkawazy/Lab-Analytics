@@ -88,7 +88,7 @@ with center:
             tmp['age_years'] = tmp.apply(age_to_years_for_analysis, axis=1)
             tmp = tmp.dropna(subset=['age_years'])
             tmp['age_band'] = add_age_bands_years(tmp['age_years'])
-            fig = histogram(tmp, x='age_years', nbins=30, title="Age distribution (years)")
+            fig = histogram(tmp, x='age_band', nbins=30, title="Age distribution (years)")
             st.plotly_chart(fig, use_container_width=True); download_buttons(fig, "age_distribution")
         if 'gender_clean' in df_f.columns and df_f['gender_clean'].notna().any():
             g = df_f['gender_clean'].value_counts().rename_axis('Gender').reset_index(name='Count')

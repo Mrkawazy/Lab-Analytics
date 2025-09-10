@@ -44,7 +44,6 @@ ABX_MAP = {
 }
 
 def parse_age(val):
-    import pandas as pd, re
     if pd.isna(val): return pd.NA, pd.NA
     v = str(val).strip().lower()
     if v in {"", "nan", "na", "none", "null"}: return pd.NA, pd.NA
@@ -76,6 +75,99 @@ def parse_age(val):
     if "w" in present:  return round(days/7, 1), "Weeks"
     if "d" in present:  return round(days, 1), "Days"
     return round(days*24, 1), "Hours"
+
+#Making age bands
+def add_age_band_5y(df, value_col="age_value", type_col="age_type",
+                    out_col="age_band_5y", years_col=None, max_years=120):
+    """
+    Add a 5-year age band column to `df` using age_value + age_type.
+
+    Bands: 0–1, 1–4, 5–9, …, 80–84, 85+ (half-open intervals [lower, upper))
+    - 0–1 covers [0, 1)
+    - 1–4 covers [1, 5)
+    - …
+    - 85+ covers [85, ∞)
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Must contain columns `value_col` and `type_col`.
+    value_col : str
+        Column with numeric age magnitudes (from parse_age).
+    type_col : str
+        Column with normalized units: "Years", "Months", "Weeks", "Days", "Hours".
+    out_col : str
+        Name of the output band column to create.
+    years_col : str | None
+        If given, also store the computed age in years in this column.
+    max_years : float
+        Ages > max_years (or < 0) are set to NaN before banding.
+
+    Returns
+    -------
+    pandas.DataFrame
+        The same DataFrame with a new categorical column `out_col`.
+    """
+
+    # 1) Convert all ages to YEARS
+    factor = {
+        "Years": 1.0,
+        "Months": 1.0 / 12.0,
+        "Weeks": 1.0 / 52.1775,
+        "Days": 1.0 / 365.25,
+        "Hours": 1.0 / (24 * 365.25),
+    }
+
+    # Map unit -> factor; coerce non-numerics to NaN
+    s_units = df[type_col].map(factor)
+    s_vals = pd.to_numeric(df[value_col], errors="coerce")
+    age_years = s_vals * s_units
+
+    # Clean absurd values
+    age_years = age_years.where((age_years >= 0) & (age_years <= float(max_years)))
+
+    # Optionally keep the computed years
+    if years_col:
+        df[years_col] = age_years
+
+    # 2) Define bins & labels
+    bins = [-np.inf, 1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, np.inf]
+    labels = [
+        "0–1 Years",   # [0,1)
+        "1–4 Years",   # [1,5)
+        "5–9 Years",
+        "10–14 Years",
+        "15–19 Years",
+        "20–24 Years",
+        "25–29 Years",
+        "30–34 Years",
+        "35–39 Years",
+        "40–44 Years",
+        "45–49 Years",
+        "50–54 Years",
+        "55–59 Years",
+        "60–64 Years",
+        "65–69 Years",
+        "70–74 Years",
+        "75–79 Years",
+        "80–84 Years",
+        "85+ Years"    # [85, ∞)
+    ]
+
+    # 3) Cut into bands
+    df[out_col] = pd.cut(
+        age_years,
+        bins=bins,
+        labels=labels,
+        right=False,          # [lower, upper)
+        include_lowest=True
+    ).astype("string")
+
+    return df
+
+
+
+
 
 def clean_patienttype(val):
     import pandas as pd, re
