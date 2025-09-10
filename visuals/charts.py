@@ -1,5 +1,6 @@
 import plotly.express as px
 import streamlit as st
+import kaleido
 
 def download_buttons(fig, base_name: str, container=None):
     area = container if container is not None else st
