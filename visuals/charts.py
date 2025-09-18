@@ -40,66 +40,52 @@ import plotly.express as px
 
 def stacked_100(
     df: pd.DataFrame,
-    x: str,                  # categorical on X (e.g., "age_band_5y")
-    stack: str,              # stack/category to color by (e.g., "sex")
-    y: str | None = None,    # numeric column to aggregate; if None, uses counts
-    agg: str = "sum",        # aggregation for y when provided: "sum", "mean", etc.
-    x_order: list[str] | None = None,   # optional fixed order for X
-    stack_order: list[str] | None = None,  # optional fixed order for stack
-    title: str | None = None,
-    labels: dict | None = None,         # axis/legend labels
-    dropna: bool = True,                # drop rows with NA in x/stack
+    x: str,
+    stack: str = None,
+    y: str = None,          # backwards-compat; if provided, we treat it as `stack`
+    value: str = None,      # numeric column to sum; if None we count rows
+    title: str = "100% Stacked"
 ):
-    """
-    Create a 100% stacked bar chart (share within each X category).
+    # allow old signature stacked_100(df, x='...', y='category')
+    if stack is None and y is not None:
+        stack = y
+    if stack is None:
+        raise ValueError("Provide the `stack` column (the category to stack).")
 
-    - If `y` is None, it will count rows per (x, stack).
-    - If `y` is given, it will aggregate `y` with `agg` per (x, stack).
-    - Normalized to percent via Plotly's barnorm='percent'.
-    """
     g = df.copy()
 
-    # Drop NA in core fields if requested
-    subset = [x, stack] + ([y] if y else [])
-    if dropna:
-        g = g.dropna(subset=subset)
-
-    # Ordering
-    if x_order is None:
-        # Keep natural order by appearance
-        x_order = list(pd.Index(g[x]).astype("string").dropna().unique())
-    if stack_order is None:
-        stack_order = list(pd.Index(g[stack]).astype("string").dropna().unique())
-
-    # Group & aggregate
-    if y is None:
-        data = (
-            g.groupby([x, stack])
+    # aggregate: either counts or sum of a numeric `value`
+    if value is None:
+        agg = (
+            g.groupby([x, stack], dropna=False)
              .size()
-             .reset_index(name="value")
+             .reset_index(name="n")
         )
-        y_label = "Count"
     else:
-        data = (
-            g.groupby([x, stack], as_index=False)
-             .agg(value=(y, agg))
+        agg = (
+            g.groupby([x, stack], dropna=False)[value]
+             .sum()
+             .reset_index(name="n")
         )
-        y_label = y if labels is None else labels.get(y, y)
 
-    # Build figure
+    # percent within each x
+    totals = agg.groupby(x)["n"].transform("sum")
+    agg["pct"] = agg["n"] / totals * 100
+
+    # tidy labels
+    x_label = x.replace("_", " ").title()
+    stack_label = stack.replace("_", " ").title()
+
     fig = px.bar(
-        data, x=x, y="value", color=stack,
-        barnorm="percent",                     # 100% stacked
-        category_orders={x: x_order, stack: stack_order},
-        title=title or f"{x} by {stack} (100% Stacked)",
-        labels={(labels or {}) | {x: x, "value": "Share", stack: stack}}
-    )
-    fig.update_layout(
+        agg,
+        x=x,
+        y="pct",
+        color=stack,
         barmode="stack",
-        yaxis_title="Percent",
-        xaxis_title=x,
-        yaxis_ticksuffix="%",
-        legend_title=stack
+        title=title,
+        labels={"pct": "Percent", x: x_label, stack: stack_label},
+        category_orders={x: sorted(agg[x].dropna().unique().tolist())}
     )
-    fig.update_traces(texttemplate="%{y:.0f}%", textposition="inside")
+    fig.update_traces(text=agg["pct"].round(1).astype(str) + "%", textposition="inside")
+    fig.update_layout(yaxis=dict(ticksuffix="%"), bargap=0.15, legend_title=stack_label)
     return fig
