@@ -22,7 +22,7 @@ hide_streamlit_footer()
 app_header_with_logo("app/assets/logo.png", "📊 Dashboard", "Clean → Filter → Analyze → Export")
 
 # 3-column layout: left menu, center content, right filters
-center, right = st.columns([6, 1], gap="large")
+center, right = st.columns([6, 2], gap="large")
 
 # with left:
 #     left_menu([("📊 Dashboard", "pages/1_📊_Dashboard.py"),
