@@ -13,6 +13,15 @@ def age_to_years_for_analysis(row) -> float:
     return np.nan
 
 def add_age_bands_years(s_years: pd.Series) -> pd.Series:
-    bins = [-0.01, 1, 5, 15, 25, 45, 65, 120]
+    # Coerce to numeric; blanks/None/invalid -> NaN
+    s = pd.to_numeric(s_years, errors="coerce")
+
+    bins   = [-0.01, 1, 5, 15, 25, 45, 65, 120]
     labels = ["<1y", "1–5y", "5–15y", "15–25y", "25–45y", "45–65y", "65+y"]
-    return pd.cut(s_years, bins=bins, labels=labels)
+
+    band = pd.cut(s, bins=bins, labels=labels, include_lowest=True)
+
+    # Add "Unknown" for NaN (null/blank/non-numeric)
+    band = band.cat.add_categories(["Unknown"]).fillna("Unknown")
+    return band
+

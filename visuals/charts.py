@@ -1,6 +1,9 @@
 import plotly.express as px
 import streamlit as st
 import kaleido
+import pandas as pd
+from pandas.api.types import is_numeric_dtype
+import plotly.express as px
 
 def download_buttons(fig, base_name: str, container=None):
     area = container if container is not None else st
@@ -26,9 +29,46 @@ def pie(df, names, values, title):
     fig.update_traces(textinfo='label+percent+value')
     return fig
 
-def histogram(df, x, nbins, title):
-    fig = px.histogram(df, x=x, nbins=nbins, title=title)
+# def histogram(df, x, nbins, title):
+#     fig = px.histogram(df, x=x, nbins=nbins, title=title)
+#     fig.update_traces(texttemplate='%{y}', textposition='outside')
+#     return fig
+
+def histogram(df, x, nbins=30, title="", sort="none", custom_order=None):
+    """
+    sort: "none" | "count_desc" | "count_asc" | "alpha_asc" | "alpha_desc" | "custom"
+    custom_order: list of category labels for x (used when sort="custom")
+    """
+    g = df.copy()
+
+    # Handle categorical sorting
+    if x in g.columns and not is_numeric_dtype(g[x]):
+        s = g[x].astype("string").fillna("Unknown")
+        g[x] = s  # ensure plotted values match order calc
+
+        if sort == "count_desc":
+            order = s.value_counts().index.tolist()
+        elif sort == "count_asc":
+            order = s.value_counts(ascending=True).index.tolist()
+        elif sort == "alpha_asc":
+            order = sorted(s.dropna().unique().tolist())
+        elif sort == "alpha_desc":
+            order = sorted(s.dropna().unique().tolist(), reverse=True)
+        elif sort == "custom" and custom_order:
+            order = list(custom_order)
+        else:
+            order = None
+    else:
+        order = None  # numeric: keep default bin order
+
+    fig = px.histogram(g, x=x, nbins=nbins, title=title)
     fig.update_traces(texttemplate='%{y}', textposition='outside')
+
+    if order:
+        fig.update_xaxes(categoryorder="array", categoryarray=order)
+
+    # Improve readability a bit
+    fig.update_layout(uniformtext_minsize=10, uniformtext_mode="hide", bargap=0.05)
     return fig
 
 
